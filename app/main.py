@@ -1,95 +1,40 @@
-from app import models, note
-from fastapi import FastAPI, HTTPException, Depends
+# main.py (обновлённая версия)
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .database import engine, get_db
-from dotenv import load_dotenv
-import os
-import requests
-from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import Session
-
-models.Base.metadata.create_all(bind=engine)
-
-load_dotenv()
+from sqlalchemy.ext.asyncio import AsyncSession
+from rasa import rasa_router
+from database import engine, Base, get_db
+from models import Users
 
 app = FastAPI()
 
-origins = [
-    "http://localhost:3000",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-app.include_router(note.router, tags=['Notes'], prefix='/api/notes')
-
-
-@app.get("/api/healthchecker")
-def root():
-    return {"message": "Welcome to FastAPI with SQLAlchemy"}
-
-@app.get("/api/db-healthchecker")
-def db_healthchecker(db: Session = Depends(get_db)):
-    try:
-        # Attempt to execute a simple query to check database connectivity
-        db.execute("SELECT 1")
-        return {"message": "Database is healthy"}
-    except OperationalError:
-        raise HTTPException(status_code=500, detail="Database is not reachable")
-
-@app.get("/posts/{post_id}")
-async def get_post(post_id: int):
-    try:
-        #Make a GET request to the JSONPlaceholder API
-        response = requests.get(f"https://jsonplaceholder.typicode.com/posts/{post_id}")
-        #Check if the request was successful (status code 200)
-        if response.status_code == 200:
-            return response.json()
+async def create_test_user():
+    """Создание тестового пользователя при старте приложения"""
+    async with AsyncSession(engine) as session:
+        # Проверяем существование пользователя
+        existing_user = await session.get(Users, 1)
+        if not existing_user:
+            test_user = Users(user_id=1)
+            session.add(test_user)
+            await session.commit()
+            print("Тестовый пользователь создан")
         else:
-            raise HTTPException(status_code=response.status_code, detail="API call failed")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Internal server error")
+            print("Тестовый пользователь уже существует")
+
+@app.on_event("startup")
+async def startup():
+    # Создаём таблицы
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     
+    # Создаём тестового пользователя
+    await create_test_user()
 
-@app.get('/crypto-price-ethereum')
-async def get_crypto_price():
-    try:
-        api_key = os.getenv("api_key")
-        if not api_key:
-            raise HTTPException(status_code=500, detail="API key not configured")
-
-        url = (
-            "https://api.coingecko.com/api/v3/simple/token_price/ethereum"
-            "?contract_addresses=0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
-            f"&vs_currencies=usd&x_cg_demo_api_key={api_key}"
-        )
-        response = requests.get(url)
-
-        if response.status_code == 200:
-            return response.json()
-        else:
-            raise HTTPException(status_code=response.status_code, detail="API call failed")
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+app.include_router(rasa_router, prefix="/api", tags=["rasa"])

@@ -1,104 +1,70 @@
-from . import schemas, models
-from sqlalchemy.orm import Session
+import models
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends, HTTPException, status, APIRouter, Response
 from sqlalchemy.exc import IntegrityError
-from .database import get_db
-
-rasa_router = APIRouter()
-
-'''
-Базовый текстовый запрос от юзера
-
-юзер -> сервер -> раса -> сервер -> юзер
-
-Формат запроса
-json
-{
-    user_id: 123123123
-    user_text: Пирет! какая погода на улице
-}
-
-Возвращает раса
-json
-{
-    user_text: text
-    Tag: code/text
-}
-'''
+from database import get_db
+import asyncio
 
 from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy.orm import Session
 import httpx
-from .database import get_db
-from .models import Users
+from database import get_db
+from models import Users
 from pydantic import BaseModel
 from typing import Optional
+
+rasa_router = APIRouter()
 
 # Схема для запроса
 class TextRequest(BaseModel):
     user_id: int
-    text: str
+    message: str
 
 # Схема для ответа
-class RasaResponse(BaseModel):
-    recipient_id: str
-    text: Optional[str] = None
-    custom: Optional[dict] = None
+class TextResponse(BaseModel):
+    type: str
+    data: str
+
 
 # Конфигурация RASA (вынесите в settings.py)
 RASA_SERVER_URL = "http://localhost:5005/webhooks/rest/webhook"
 
-@rasa_router.post('/text', response_model=RasaResponse)
+
+@rasa_router.post('/text', response_model=TextResponse)
 async def process_text(
-    request: TextRequest,
-    db: Session = Depends(get_db)
+    request: TextRequest, 
+    db: AsyncSession = Depends(get_db)
 ):
-    """
-    Обработка текстового сообщения пользователя с перенаправлением в RASA
-    
-    - Проверяет существование пользователя
-    - Отправляет сообщение в RASA
-    - Возвращает ответ от RASA
-    """
-    
-    # Проверка существования пользователя
-    user = db.query(Users).filter(Users.user_id == request.user_id).first()
+    # 1. Проверка существования пользователя
+    user = await db.get(Users, request.user_id)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            detail="Пользователь не найден"
         )
 
-    # Подготовка данных для RASA
-    rasa_payload = {
-        "sender": str(request.user_id),
-        "message": request.text
-    }
-
-    try:
-        # Отправка запроса в RASA
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
+    # 2. Отправка запроса в Rasa
+    async with httpx.AsyncClient() as client:
+        try:
+            rasa_response = await client.post(
                 RASA_SERVER_URL,
-                json=rasa_payload,
-                timeout=10.0
+                json={"message": f"{request.message}"}
             )
-            response.raise_for_status()
-            
-            rasa_data = response.json()
-            
-            # Обработка ответа RASA (пример для простого текстового ответа)
-            if rasa_data:
-                return RasaResponse(
-                    recipient_id=str(request.user_id),
-                    text=rasa_data[0].get("text"),
-                    custom=rasa_data[0].get("custom")
-                )
-            
-            return RasaResponse(recipient_id=str(request.user_id))
-
-    except httpx.HTTPError as e:
+            rasa_response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(
+                status_code=e.response.status_code,
+                detail="The server is busy. Please try again later."
+            )
+    
+    # 3. Обработка ответа от Rasa
+    rasa_ans = rasa_response.json()
+    if not rasa_ans or not isinstance(rasa_ans, dict):
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"RASA service error: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Неверный формат от РАСА"
         )
+    print(rasa_ans)
+    return TextResponse(type=rasa_ans['type'], data=rasa_ans['data'])
+
+
