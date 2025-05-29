@@ -56,6 +56,11 @@ async def process_text(
                 status_code=e.response.status_code,
                 detail="The server is busy. Please try again later."
             )
+        except httpx.RequestError:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Rasa server is unavailable. Please try again later."
+            )
     
     # 3. Обработка ответа от Rasa
     rasa_ans = rasa_response.json()
