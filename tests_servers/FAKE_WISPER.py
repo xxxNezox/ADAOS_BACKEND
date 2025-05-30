@@ -14,7 +14,7 @@ class AudioInput(BaseModel):
 class AudioResponse(BaseModel):
     text: str
 
-@app.post("/transcribe")
+@app.post("/asdasd")
 async def process_audio(audio_input: AudioInput):
     """
     Эндпоинт для обработки аудио.
@@ -27,7 +27,7 @@ async def process_audio(audio_input: AudioInput):
     return JSONResponse(content={"text": "Аудио обработано"})
 
 # Альтернативная версия, если audio передается как файл
-@app.post("/upload_audio")
+@app.post("/transcribe")
 async def upload_audio(file: UploadFile = File(...)):
     """
     Эндпоинт для загрузки аудиофайла.

@@ -1,4 +1,4 @@
-# ...existing code...
+# whisper.py (обновленная версия)
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from pydantic import BaseModel
@@ -11,11 +11,10 @@ from Server_error_handler import ServerErrorHandler
 whisper_router = APIRouter()
 WHISPER_SERVER_URL = "http://localhost:8001/transcribe"
 
-class WhisperRasaResponse(BaseModel):
-    type: str
-    data: str
+class TranscribeResponse(BaseModel):
+    text: str
 
-@whisper_router.post('/transcribe', response_model=WhisperRasaResponse)
+@whisper_router.post('/transcribe', response_model=TranscribeResponse)
 async def transcribe_audio(
     user_id: int = Form(...),
     file: UploadFile = File(...),
@@ -32,11 +31,14 @@ async def transcribe_audio(
     # Чтение файла
     try:
         audio_bytes = await file.read()
+        ###printer('Проверка аудио', audio_bytes)
     finally:
         await file.close()
 
     # Отправка запроса в сервис транскрибации
     files_payload = {'file': (file.filename, audio_bytes, file.content_type)}
+    ###printer('Файл пейлоад', files_payload)
+    
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
@@ -50,9 +52,10 @@ async def transcribe_audio(
         except httpx.RequestError:
             raise await ServerErrorHandler.handle_request_error()
     
-    # Обработка ответа Whisper
+    # Обработка ответа
     try:
         transcription_data = response.json()
+        ###printer('transcription_data', transcription_data)
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -64,42 +67,12 @@ async def transcribe_audio(
         ["text"],
         "сервиса транскрибции"
     )
-    transcribed_text = transcription_data['text']
-
-    # Отправка текста в Rasa
-    RASA_SERVER_URL = "http://localhost:5005/webhooks/rest/webhook"
-    rasa_payload = {"message": transcribed_text}
-    async with httpx.AsyncClient() as client:
-        try:
-            rasa_response = await client.post(
-                RASA_SERVER_URL,
-                json=rasa_payload
-            )
-            rasa_response.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            raise await ServerErrorHandler.handle_http_error(
-                e,
-                "The server is busy. Please try again later.",
-                "message"
-            )
-        except httpx.RequestError:
-            raise await ServerErrorHandler.handle_request_error()
     
-    # Обработка ответа Rasa
-    try:
-        rasa_data = rasa_response.json()
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Неверный формат JSON от Rasa"
-        )
+    print(f"Ответ от сервиса транскрибции: {transcription_data}") 
+    return TranscribeResponse(text=transcription_data['text'])
 
-    # Если Rasa возвращает список сообщений, берём первое
-    if isinstance(rasa_data, list) and rasa_data:
-        rasa_data = rasa_data[0]
-    await ServerErrorHandler.validate_service_response(
-        rasa_data, 
-        ["data"],  # Обычно Rasa возвращает "text"
-        "Rasa"
-    )
-    return WhisperRasaResponse(type=rasa_data.get("type", "text"), data=rasa_data["data"])
+def printer(name, status):
+    print('='*40)
+    print(f'Имя исполняемого куска: {name}')
+    print(f'Ответ куска: {status}')
+    print('========================================================================')
