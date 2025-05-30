@@ -14,7 +14,7 @@ class AudioInput(BaseModel):
 class AudioResponse(BaseModel):
     text: str
 
-@app.post("/process_audio")
+@app.post("/transcribe")
 async def process_audio(audio_input: AudioInput):
     """
     Эндпоинт для обработки аудио.
@@ -41,4 +41,4 @@ async def upload_audio(file: UploadFile = File(...)):
     return {"text": "Аудио файл получен и обработан"}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=5006)
+    uvicorn.run(app, host="0.0.0.0", port=8001)

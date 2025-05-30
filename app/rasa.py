@@ -1,3 +1,4 @@
+# rasa.py (обновленная версия)
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -5,30 +6,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
 from models import Users
+from Server_error_handler import ServerErrorHandler
 
 rasa_router = APIRouter()
 
-# Схема для запроса
 class TextRequest(BaseModel):
     user_id: int
     message: str
 
-# Схема для ответа
 class TextResponse(BaseModel):
     type: str
     data: str
 
-
-# Конфигурация RASA (вынесите в settings.py)
 RASA_SERVER_URL = "http://localhost:5005/webhooks/rest/webhook"
-
 
 @rasa_router.post('/text', response_model=TextResponse)
 async def process_text(
     request: TextRequest, 
     db: AsyncSession = Depends(get_db)
 ):
-    # 1. Проверка существования пользователя
+    # Проверка пользователя
     user = await db.get(Users, request.user_id)
     if not user:
         raise HTTPException(
@@ -36,33 +33,37 @@ async def process_text(
             detail="Пользователь не найден"
         )
 
-    # 2. Отправка запроса в Rasa
+    # Отправка запроса в Rasa
     async with httpx.AsyncClient() as client:
         try:
-            rasa_response = await client.post(
+            response = await client.post(
                 RASA_SERVER_URL,
                 json={"message": f"{request.message}"}
             )
-            rasa_response.raise_for_status()
+            response.raise_for_status()
         except httpx.HTTPStatusError as e:
-            raise HTTPException(
-                status_code=e.response.status_code,
-                detail="The server is busy. Please try again later."
+            raise await ServerErrorHandler.handle_http_error(
+                e,
+                "The server is busy. Please try again later.",
+                "message"  # Rasa может использовать другой ключ для ошибок
             )
         except httpx.RequestError:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Rasa server is unavailable. Please try again later."
-            )
+            raise await ServerErrorHandler.handle_request_error()
     
-    # 3. Обработка ответа от Rasa
-    rasa_ans = rasa_response.json()
-    if not rasa_ans or not isinstance(rasa_ans, dict):
+    # Обработка ответа
+    try:
+        rasa_data = response.json()
+    except ValueError:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Неверный формат от РАСА"
+            detail="Неверный формат JSON от Rasa"
         )
-    print(rasa_ans)
-    return TextResponse(type=rasa_ans['type'], data=rasa_ans['data'])
-
-
+    
+    await ServerErrorHandler.validate_service_response(
+        rasa_data, 
+        ["type", "data"],
+        "Rasa"
+    )
+    
+    print(rasa_data)
+    return TextResponse(type=rasa_data['type'], data=rasa_data['data'])
