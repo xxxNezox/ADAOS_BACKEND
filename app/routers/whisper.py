@@ -1,19 +1,20 @@
-# ...existing code...
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database import get_db
-from models import Users
-from Server_error_handler import ServerErrorHandler
+from app.db.database import get_db # Changed import
+from app.db.models import Users # Changed import
+from app.utils.server_error_handler import ServerErrorHandler # Changed import
+
+from app.core.config import settings
 
 whisper_router = APIRouter()
-WHISPER_SERVER_URL = "http://localhost:8001/transcribe"
 
 class WhisperRasaResponse(BaseModel):
     type: str
     data: str
+
 
 @whisper_router.post('/transcribe', response_model=WhisperRasaResponse)
 async def transcribe_audio(
@@ -40,7 +41,7 @@ async def transcribe_audio(
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
-                WHISPER_SERVER_URL,
+                settings.WHISPER_SERVER_URL,
                 files=files_payload,
                 timeout=30.0
             )
@@ -67,39 +68,36 @@ async def transcribe_audio(
     transcribed_text = transcription_data['text']
 
     # Отправка текста в Rasa
-    RASA_SERVER_URL = "http://localhost:5005/webhooks/rest/webhook"
-    rasa_payload = {"message": transcribed_text}
     async with httpx.AsyncClient() as client:
         try:
-            rasa_response = await client.post(
-                RASA_SERVER_URL,
-                json=rasa_payload
+            response = await client.post(
+                settings.RASA_SERVER_URL,
+                json={"message": f"{transcribed_text}"}
             )
-            rasa_response.raise_for_status()
+            response.raise_for_status()
         except httpx.HTTPStatusError as e:
             raise await ServerErrorHandler.handle_http_error(
                 e,
                 "The server is busy. Please try again later.",
-                "message"
+                "message"  # Rasa может использовать другой ключ для ошибок
             )
         except httpx.RequestError:
             raise await ServerErrorHandler.handle_request_error()
     
-    # Обработка ответа Rasa
+    # Обработка ответа
     try:
-        rasa_data = rasa_response.json()
+        rasa_data = response.json()
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Неверный формат JSON от Rasa"
         )
-
-    # Если Rasa возвращает список сообщений, берём первое
-    if isinstance(rasa_data, list) and rasa_data:
-        rasa_data = rasa_data[0]
+    
     await ServerErrorHandler.validate_service_response(
         rasa_data, 
-        ["data"],  # Обычно Rasa возвращает "text"
+        ["type", "data"],
         "Rasa"
     )
-    return WhisperRasaResponse(type=rasa_data.get("type", "text"), data=rasa_data["data"])
+    
+    print(rasa_data)
+    return WhisperRasaResponse(type=rasa_data['type'], data=rasa_data['data'])

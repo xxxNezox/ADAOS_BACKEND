@@ -2,11 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.database import engine, Base
-from app.db.models import Users
+from database import engine, Base, get_db
+from models import Users
 
-from app.routers.rasa import rasa_router
-from app.routers.whisper import whisper_router
+from rasa import rasa_router
+from whisper import whisper_router
 
 app = FastAPI()
 
