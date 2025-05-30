@@ -1,17 +1,10 @@
-import models
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import Depends, HTTPException, status, APIRouter, Response
-from sqlalchemy.exc import IntegrityError
-from database import get_db
-import asyncio
-
-from fastapi import Depends, HTTPException, APIRouter
-from sqlalchemy.orm import Session
 import httpx
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from database import get_db
 from models import Users
-from pydantic import BaseModel
-from typing import Optional
 
 rasa_router = APIRouter()
 

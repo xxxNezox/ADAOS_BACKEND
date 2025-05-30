@@ -1,10 +1,12 @@
-# main.py (обновлённая версия)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
-from rasa import rasa_router
+
 from database import engine, Base, get_db
 from models import Users
+
+from rasa import rasa_router
+from whisper import whisper_router
 
 app = FastAPI()
 
@@ -38,3 +40,4 @@ async def startup():
     await create_test_user()
 
 app.include_router(rasa_router, prefix="/api", tags=["rasa"])
+app.include_router(whisper_router, prefix="/api", tags=["whisper"])
