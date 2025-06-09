@@ -25,13 +25,12 @@ async def process_text(
     db: AsyncSession = Depends(get_db)
 ):
     # Проверка пользователя
-    user = await db.get(Users, request.user_id)
-    if not user:
+    if not await Users.user_exists(db, request.user_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Пользователь не найден"
         )
-
+    
     # Отправка запроса в Rasa
     async with httpx.AsyncClient() as client:
         try:

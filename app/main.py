@@ -7,6 +7,7 @@ from app.db.models import Users
 
 from app.routers.rasa import rasa_router
 from app.routers.whisper import whisper_router
+from app.routers.client import client_router
 
 app = FastAPI()
 
@@ -41,3 +42,4 @@ async def startup():
 
 app.include_router(rasa_router, prefix="/api", tags=["rasa"])
 app.include_router(whisper_router, prefix="/api", tags=["whisper"])
+app.include_router(client_router, prefix="/api", tags=["client"])

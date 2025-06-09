@@ -22,3 +22,5 @@ SQLALCHEMY_DATABASE_URL="sqlite+aiosqlite:///./db.sqlite3"
 WHISPER_SERVER_URL="http://localhost:8001/transcribe"
 RASA_SERVER_URL="http://localhost:5005/webhooks/rest/webhook"
 ```
+
+Находясь в 

@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     SQLALCHEMY_DATABASE_URL: str = "sqlite+aiosqlite:///./db.sqlite3"
     WHISPER_SERVER_URL: str = "http://localhost:8001/transcribe"
     RASA_SERVER_URL: str = "http://localhost:5005/webhooks/rest/webhook"
+    GEMINI_API_KEY: str = "..."
 
     model_config = SettingsConfigDict(env_file=".env", extra='ignore', env_file_encoding='utf-8')
 

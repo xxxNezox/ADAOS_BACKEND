@@ -3,9 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile,
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.database import get_db # Changed import
-from app.db.models import Users # Changed import
-from app.utils.server_error_handler import ServerErrorHandler # Changed import
+from app.db.database import get_db 
+from app.db.models import Users
+from app.utils.server_error_handler import ServerErrorHandler
 
 from app.core.config import settings
 
@@ -23,8 +23,7 @@ async def transcribe_audio(
     db: AsyncSession = Depends(get_db)
 ):
     # Проверка пользователя
-    user = await db.get(Users, user_id)
-    if not user:
+    if not await Users.user_exists(db, user_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Пользователь не найден"
