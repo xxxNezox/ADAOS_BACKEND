@@ -14,14 +14,14 @@ client_router = APIRouter()
 class UserCreateResponse(BaseModel):
     user_id: int
 
-@client_router.post('/init_user', response_model=UserCreateResponse)
+client_router.post('/init_user', response_model=UserCreateResponse)
 async def create_new_user(
     db: AsyncSession = Depends(get_db)
 ):
-    """Создает нового пользователя и возвращает его ID"""
+    """Создает нового пользователя и возвращает его ID."""
     try:
-        new_user = await Users.create_user(db)
-        return UserCreateResponse(user_id=new_user.user_id)
+        new_user_id = await Users.create_user(db)
+        return UserCreateResponse(user_id=new_user_id)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
