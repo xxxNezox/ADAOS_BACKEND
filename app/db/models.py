@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer
 from .database import Base
+from sqlalchemy.ext.asyncio import AsyncSession
 
 class Users(Base):
     __tablename__ = 'users'
