@@ -31,14 +31,14 @@ async def create_test_user():
         else:
             print("Тестовый пользователь уже существует")
 
-@app.on_event("startup")
-async def startup():
-    # Создаём таблицы
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+# @app.on_event("startup")
+# async def startup():
+#     # Создаём таблицы
+#     async with engine.begin() as conn:
+#         await conn.run_sync(Base.metadata.create_all)
     
-    # Создаём тестового пользователя
-    await create_test_user()
+#     # Создаём тестового пользователя
+#     await create_test_user()
 
 app.include_router(rasa_router, prefix="/api", tags=["rasa"])
 app.include_router(whisper_router, prefix="/api", tags=["whisper"])
