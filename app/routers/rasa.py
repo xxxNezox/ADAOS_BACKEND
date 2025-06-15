@@ -51,7 +51,8 @@ async def process_text(
     
     # Обработка ответа
     try:
-        rasa_data = response.json()
+        rasa_data = response.json()[0].get('custom')
+        print(rasa_data)
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

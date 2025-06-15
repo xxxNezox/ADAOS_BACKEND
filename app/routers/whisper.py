@@ -14,6 +14,7 @@ whisper_router = APIRouter()
 class WhisperRasaResponse(BaseModel):
     type: str
     data: str
+    file_name: str | None = None
 
 
 @whisper_router.post('/transcribe', response_model=WhisperRasaResponse)
@@ -85,7 +86,8 @@ async def transcribe_audio(
     
     # Обработка ответа
     try:
-        rasa_data = response.json()
+        rasa_data = response.json()[0].get('custom')
+        print(rasa_data)
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -99,4 +101,4 @@ async def transcribe_audio(
     )
     
     print(rasa_data)
-    return WhisperRasaResponse(type=rasa_data['type'], data=rasa_data['data'])
+    return WhisperRasaResponse(type=rasa_data['type'], data=rasa_data['data'], file_name=rasa_data.get('file_name'))
