@@ -14,22 +14,7 @@ client_router = APIRouter()
 
 class UserCreateResponse(BaseModel):
     user_id: int
-
-client_router.post('/init_user', response_model=UserCreateResponse)
-async def create_new_user(
-    db: AsyncSession = Depends(get_db)
-):
-    """Создает нового пользователя и возвращает его ID."""
-    try:
-        new_user_id = await Users.create_user(db)
-        return UserCreateResponse(user_id=new_user_id)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка при создании пользователя: {str(e)}"
-        )
     
-
 class CodeErrorRequest(BaseModel):
     user_id: int
     code: str
@@ -38,6 +23,7 @@ class CodeErrorRequest(BaseModel):
 class CodeFixResponse(BaseModel):
     code: str
     comments: str
+
 
 @client_router.post('/fix_code_error', response_model=CodeFixResponse)
 async def fix_code_error(
@@ -100,4 +86,19 @@ async def fix_code_error(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error processing request: {str(e)}"
+        )
+    
+
+@client_router.post('/init_user', response_model=UserCreateResponse)
+async def create_new_user(
+    db: AsyncSession = Depends(get_db)
+):
+    """Создает нового пользователя и возвращает его ID."""
+    try:
+        new_user_id = await Users.create_user(db)
+        return UserCreateResponse(user_id=new_user_id)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ошибка при создании пользователя: {str(e)}"
         )
