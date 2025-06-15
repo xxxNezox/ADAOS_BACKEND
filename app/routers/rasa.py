@@ -18,6 +18,7 @@ class TextRequest(BaseModel):
 class TextResponse(BaseModel):
     type: str
     data: str
+    file_name: str | None = None
 
 @rasa_router.post('/text', response_model=TextResponse)
 async def process_text(
@@ -59,9 +60,9 @@ async def process_text(
     
     await ServerErrorHandler.validate_service_response(
         rasa_data, 
-        ["type", "data"],
+        ["type", "data", ],
         "Rasa"
     )
     
     print(rasa_data)
-    return TextResponse(type=rasa_data['type'], data=rasa_data['data'])
+    return TextResponse(type=rasa_data['type'], data=rasa_data['data'], file_name=rasa_data.get('file_name'))

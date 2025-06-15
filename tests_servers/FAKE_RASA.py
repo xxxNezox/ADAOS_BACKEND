@@ -13,7 +13,8 @@ async def mock_rasa_endpoint(request: Request):
     # Фиксированный ответ, который ожидает основной сервер
     response_data = {
         "type": "text",
-        "data": "Привет, как дела"
+        "data": "Привет, как дела",
+        'file_name': 'AZAZAZA'
     }
     
     return JSONResponse(content=response_data)
