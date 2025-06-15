@@ -4,10 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import get_db
 from app.db.models import Users
 from typing import Dict, Any
+from app.core.config import settings
 
 from app.utils.LLM import async_generate_content
 
-GEMINI_API_KEY = ... # разобраться с импортом .env через core.config и нормально добавить ключ
+GEMINI_API_KEY = settings.GEMINI_API_KEY
 
 client_router = APIRouter()
 
